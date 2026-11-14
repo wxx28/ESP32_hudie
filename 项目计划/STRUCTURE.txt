@@ -1,0 +1,68 @@
+项目计划/  (project structure, generated)
+
+├─ docs/
+│  ├─ img/
+│  │  ├─ schematic.png
+│  │  ├─ wing_A2_1to1.jpg
+│  │  └─ wing_measured.png
+│  ├─ 00-原理图解读与引脚表.md
+│  ├─ 01-飞控算法选型.md
+│  ├─ 02-舵机与拍翅机构选型.md
+│  ├─ 03-遥控链路与协议.md
+│  ├─ 04-总体结构与装配.md
+│  ├─ 05-翼型实测与尺寸校核.md
+│  └─ bom.csv
+├─ firmware/
+│  ├─ flight/
+│  │  ├─ include/
+│  │  │  └─ config.h
+│  │  ├─ src/
+│  │  │  ├─ attitude.h
+│  │  │  ├─ control.h
+│  │  │  ├─ imu_mpu6500.h
+│  │  │  ├─ main.cpp
+│  │  │  ├─ mixer.h
+│  │  │  ├─ rc_espnow.h
+│  │  │  ├─ safety.h
+│  │  │  ├─ servo_out.h
+│  │  │  └─ telemetry.h
+│  │  ├─ README.md
+│  │  └─ platformio.ini
+│  ├─ remote/
+│  │  ├─ include/
+│  │  │  └─ config.h
+│  │  ├─ src/
+│  │  │  ├─ joystick.h
+│  │  │  ├─ link.h
+│  │  │  ├─ main.cpp
+│  │  │  └─ ui.h
+│  │  ├─ README.md
+│  │  └─ platformio.ini
+│  ├─ shared/
+│  │  └─ protocol.h
+│  └─ README.md
+├─ hardware/
+│  ├─ frame/
+│  │  └─ README.md
+│  ├─ wing/
+│  │  └─ README.md
+│  └─ README.md
+├─ manufacturing/
+│  └─ README.md
+├─ tools/
+│  ├─ calc/
+│  │  ├─ flap_estimate.py
+│  │  ├─ measure_wing.py
+│  │  ├─ result.md
+│  │  ├─ servo_result.txt
+│  │  ├─ servo_sizing.py
+│  │  ├─ wing_measure.json
+│  │  ├─ wing_report.md
+│  │  ├─ wing_sizing_growth.py
+│  │  └─ wing_sizing_report.md
+│  ├─ host_test/
+│  │  ├─ README.md
+│  │  └─ test_protocol.cpp
+│  └─ parse_epro2.py
+├─ 06-文件结构与团队分工.md
+└─ README.md
