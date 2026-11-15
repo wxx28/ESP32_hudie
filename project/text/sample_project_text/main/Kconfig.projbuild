@@ -1,0 +1,37 @@
+menu "HUDI ESP-NOW 双板通信"
+
+    config APP_ESPNOW_CHANNEL
+        int "ESP-NOW 使用的 Wi-Fi 信道"
+        range 1 13
+        default 1
+        help
+            两块板必须使用同一个信道，否则收不到对方的广播包。
+
+    config APP_LED_GPIO
+        int "LED GPIO 编号"
+        default 3
+        help
+            LED 接在该引脚上，收到对端指令时翻转。
+
+    config APP_LED_ACTIVE_LOW
+        bool "LED 低电平点亮"
+        default y
+
+    config APP_BUTTON_GPIO
+        int "按键 GPIO 编号"
+        default 0
+        help
+            GPIO0 是 ESP32-C3 的 BOOT strapping 引脚，复位瞬间不要按住按键，
+            否则会进入下载模式。
+
+    config APP_BUTTON_ACTIVE_LOW
+        bool "按键低电平按下"
+        default y
+
+    config APP_LED_ACK_BLINK_MS
+        int "发送指令后本板 LED 闪烁时长(ms)"
+        default 60
+        help
+            按键发出指令后本板 LED 短暂点亮，用于确认数据已交给发送驱动。
+
+endmenu
