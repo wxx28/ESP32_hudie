@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>ESP32-C3 差速扑翼</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #f3f6f4;
+      color: #17251f;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 300px; }
+    main { width: min(100% - 32px, 480px); margin: 28px auto 40px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #d9e2dc; }
+    h1 { margin: 0; font-size: 21px; font-weight: 650; }
+    .status { display: inline-flex; align-items: center; gap: 8px; color: #53645b; font-size: 14px; white-space: nowrap; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #8a9690; }
+    .status.running { color: #08734f; }
+    .status.running .dot { background: #10a66c; }
+    .status.error { color: #a3332a; }
+    .status.error .dot { background: #c4564a; }
+
+    .pad-wrap { display: grid; gap: 12px; padding: 20px 0 8px; }
+    .pad {
+      position: relative; width: min(100%, 280px); aspect-ratio: 1; margin: 0 auto;
+      border: 1px solid #cfdad3; border-radius: 16px; overflow: hidden;
+      background: radial-gradient(circle at 50% 50%, #eaf1ec, #dde7e1);
+      touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
+    }
+    .pad.pressed { cursor: grabbing; border-color: #10a66c; }
+    .pad::before, .pad::after { content: ""; position: absolute; background: #c7d3cc; }
+    .pad::before { left: 0; right: 0; top: 50%; height: 1px; }
+    .pad::after { top: 0; bottom: 0; left: 50%; width: 1px; }
+    .knob {
+      position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%;
+      background: #08734f; box-shadow: 0 4px 12px rgba(8, 115, 79, .35);
+      transform: translate(-50%, -50%); pointer-events: none;
+    }
+    .pad.pressed .knob { background: #10a66c; }
+    .pad-hint { text-align: center; color: #77847c; font-size: 12px; }
+    .readout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .readout div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px solid #d9e2dc; border-radius: 8px; background: #fff; }
+    .readout .label { color: #53645b; font-size: 13px; }
+    .readout output { color: #08734f; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+    .controls { display: grid; gap: 20px; padding: 16px 0 4px; }
+    .control { display: grid; gap: 8px; }
+    .control-head, .limits { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    label { font-size: 15px; font-weight: 600; }
+    output { color: #08734f; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; height: 24px; margin: 0; accent-color: #07865b; cursor: pointer; }
+    .limits { color: #77847c; font-size: 12px; }
+    .buttons { display: grid; gap: 10px; padding-top: 18px; }
+    button { min-height: 48px; border: 1px solid #a3332a; border-radius: 6px; background: #a3332a; color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+    button:active { background: #8b291f; }
+    #message { min-height: 20px; margin: 12px 0 0; color: #53645b; font-size: 13px; }
+    #message.error { color: #a3332a; }
+    @media (max-width: 420px) {
+      main { width: min(100% - 24px, 480px); margin: 18px auto 28px; }
+      header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>差速扑翼控制</h1>
+      <div class="status" id="status"><span class="dot"></span><span id="statusText">正在连接</span></div>
+    </header>
+
+    <section class="pad-wrap">
+      <div class="pad" id="pad" role="application" aria-label="二维摇杆：上下控制振幅，左右控制差动">
+        <div class="knob" id="knob"></div>
+      </div>
+      <p class="pad-hint">按住并拖动：上下调振幅 A，左右调差动 D；松手停止并回中位</p>
+      <div class="readout">
+        <div><span class="label">振幅 A</span><output id="valueA">40°</output></div>
+        <div><span class="label">差动 D</span><output id="valueD">0°</output></div>
+      </div>
+    </section>
+
+    <section class="controls">
+      <div class="control">
+        <div class="control-head"><label for="frequency">扑动频率 f（ω = 2πf）</label><output id="frequencyValue"></output></div>
+        <input id="frequency" type="range" min="1.56" max="3.13" step="0.01" value="2">
+        <div class="limits"><span>1.56 Hz</span><span>3.13 Hz</span></div>
+      </div>
+
+      <div class="control">
+        <div class="control-head"><label for="phase">相位 φ</label><output id="phaseValue"></output></div>
+        <input id="phase" type="range" min="0" max="360" step="1" value="0">
+        <div class="limits"><span>0°</span><span>360°</span></div>
+      </div>
+
+      <div class="control">
+        <div class="control-head"><label for="center">中心角 k</label><output id="centerValue"></output></div>
+        <input id="center" type="range" min="40" max="140" step="1" value="90">
+        <div class="limits"><span>40°</span><span>140°</span></div>
+      </div>
+    </section>
+
+    <div class="buttons">
+      <button id="stopButton" type="button">紧急停止并回中位</button>
+    </div>
+    <p id="message" role="status"></p>
+  </main>
+
+  <script>
+    const MIN_AMPLITUDE = 40;
+    const MAX_AMPLITUDE = 90;
+    const MAX_DIFFERENTIAL = 20;
+    const AMPLITUDE_MID = 65;
+    const AMPLITUDE_SPAN = 25;
+    const JOYSTICK_SEND_INTERVAL_MS = 50;
+    const JOYSTICK_HEARTBEAT_MS = 200;
+    const KNOB_MARGIN_PX = 30;
+
+    const pad = document.getElementById("pad");
+    const knob = document.getElementById("knob");
+    const message = document.getElementById("message");
+    const status = document.getElementById("status");
+    const statusText = document.getElementById("statusText");
+    const valueA = document.getElementById("valueA");
+    const valueD = document.getElementById("valueD");
+    const sliders = {
+      frequency: document.getElementById("frequency"),
+      phase: document.getElementById("phase"),
+      center: document.getElementById("center"),
+    };
+    const config = { frequency: 2, phase: 0, center: 90 };
+    const stick = { x: 0, y: 0 };
+
+    let activePointer = null;
+    let pumpTimer = null;
+    let configTimer = null;
+    let dirty = false;
+    let inflight = false;
+    let pending = null;
+    let lastSentAt = 0;
+
+    function clamp(value, low, high) {
+      return Math.min(high, Math.max(low, value));
+    }
+
+    function centerSpan(center) {
+      return Math.min(center, 180 - center);
+    }
+
+    // 与固件 clamp_mix 保持一致：先夹 D，再夹 A，保证 A + |D| <= min(k, 180-k)
+    function mix(x, y, center) {
+      const span = centerSpan(center);
+      const maxDiff = Math.max(0, span - MIN_AMPLITUDE);
+      const d = clamp(MAX_DIFFERENTIAL * x, -maxDiff, maxDiff);
+      const maxAmplitude = Math.min(MAX_AMPLITUDE, span - Math.abs(d));
+      const a = clamp(AMPLITUDE_MID + AMPLITUDE_SPAN * y, MIN_AMPLITUDE,
+        Math.max(MIN_AMPLITUDE, maxAmplitude));
+      return { a, d };
+    }
+
+    function setMessage(text, isError) {
+      message.textContent = text;
+      message.classList.toggle("error", Boolean(isError));
+    }
+
+    function setStatus(text, mode) {
+      statusText.textContent = text;
+      status.classList.toggle("running", mode === "running");
+      status.classList.toggle("error", mode === "error");
+    }
+
+    async function flush(path, body, silent) {
+      inflight = true;
+      try {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+        });
+        if (!response.ok) throw new Error("设备拒绝了参数");
+        if (!silent) setMessage("参数已发送", false);
+        status.classList.remove("error");
+      } catch (error) {
+        setMessage(error.message || "连接设备失败", true);
+        setStatus("连接失败", "error");
+      } finally {
+        inflight = false;
+        if (pending) {
+          const next = pending;
+          pending = null;
+          flush(next.path, next.body, next.silent);
+        }
+      }
+    }
+
+    // 单请求在途 + 只保留最新一次，避免高频摇杆数据排队堆积
+    function send(path, data, silent) {
+      const payload = { path, body: new URLSearchParams(data).toString(), silent: Boolean(silent) };
+      if (inflight) {
+        pending = payload;
+        return;
+      }
+      flush(payload.path, payload.body, payload.silent);
+    }
+
+    function renderStick() {
+      const rect = pad.getBoundingClientRect();
+      const limit = Math.max(10, Math.min(rect.width, rect.height) / 2 - KNOB_MARGIN_PX);
+      knob.style.transform =
+        `translate(-50%, -50%) translate(${(stick.x * limit).toFixed(1)}px, ${(-stick.y * limit).toFixed(1)}px)`;
+
+      const mixed = mix(stick.x, stick.y, config.center);
+      valueA.textContent = `${mixed.a.toFixed(0)}°`;
+      valueD.textContent = `${mixed.d.toFixed(0)}°`;
+    }
+
+    function renderSliders() {
+      document.getElementById("frequencyValue").textContent = `${config.frequency.toFixed(2)} Hz`;
+      document.getElementById("phaseValue").textContent = `${config.phase.toFixed(0)}°`;
+      document.getElementById("centerValue").textContent = `${config.center.toFixed(0)}°`;
+    }
+
+    function updateStickFromEvent(event) {
+      const rect = pad.getBoundingClientRect();
+      const radius = Math.min(rect.width, rect.height) / 2;
+      let dx = (event.clientX - (rect.left + rect.width / 2)) / radius;
+      let dy = (event.clientY - (rect.top + rect.height / 2)) / radius;
+      const length = Math.hypot(dx, dy);
+      if (length > 1) {
+        dx /= length;
+        dy /= length;
+      }
+      stick.x = dx;
+      stick.y = -dy; // 摇杆向上为正
+      dirty = true;
+      renderStick();
+    }
+
+    function pump() {
+      if (activePointer === null) return;
+      const now = performance.now();
+      if (!dirty && now - lastSentAt < JOYSTICK_HEARTBEAT_MS) return;
+      dirty = false;
+      lastSentAt = now;
+      send("/api/joystick", {
+        x: stick.x.toFixed(3),
+        y: stick.y.toFixed(3),
+        active: true,
+      }, true);
+    }
+
+    function startJoystick(event) {
+      if (activePointer !== null) return;
+      activePointer = event.pointerId;
+      try {
+        pad.setPointerCapture(event.pointerId);
+      } catch (error) {
+        // 某些内嵌浏览器不支持指针捕获，仍可用 pointermove
+      }
+      pad.classList.add("pressed");
+      updateStickFromEvent(event);
+      setStatus("扑动中", "running");
+      lastSentAt = 0;
+      dirty = true;
+      pump();
+      if (!pumpTimer) pumpTimer = setInterval(pump, JOYSTICK_SEND_INTERVAL_MS);
+    }
+
+    function moveJoystick(event) {
+      if (event.pointerId !== activePointer) return;
+      updateStickFromEvent(event);
+    }
+
+    function stopJoystick() {
+      const wasActive = activePointer !== null;
+      activePointer = null;
+      pad.classList.remove("pressed");
+      if (pumpTimer) {
+        clearInterval(pumpTimer);
+        pumpTimer = null;
+      }
+      dirty = false;
+      setStatus("已停止", "stopped");
+      if (wasActive) {
+        send("/api/joystick", {
+          x: stick.x.toFixed(3),
+          y: stick.y.toFixed(3),
+          active: false,
+        }, true);
+      }
+    }
+
+    pad.addEventListener("pointerdown", startJoystick);
+    pad.addEventListener("pointermove", moveJoystick);
+    pad.addEventListener("pointerup", stopJoystick);
+    pad.addEventListener("pointercancel", stopJoystick);
+    pad.addEventListener("lostpointercapture", stopJoystick);
+    // 指针捕获不可用时，手指可能在摇杆外抬起
+    window.addEventListener("pointerup", (event) => {
+      if (event.pointerId === activePointer) stopJoystick();
+    });
+    window.addEventListener("pointercancel", (event) => {
+      if (event.pointerId === activePointer) stopJoystick();
+    });
+    window.addEventListener("blur", stopJoystick);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopJoystick();
+    });
+
+    document.getElementById("stopButton").addEventListener("click", () => {
+      stopJoystick();
+      send("/api/joystick", { x: 0, y: 0, active: false }, true);
+    });
+
+    for (const [key, input] of Object.entries(sliders)) {
+      input.addEventListener("input", () => {
+        config[key] = Number(input.value);
+        renderSliders();
+        renderStick();
+        clearTimeout(configTimer);
+        configTimer = setTimeout(() => {
+          send("/api/config", {
+            frequency_hz: config.frequency.toFixed(2),
+            phase_deg: config.phase.toFixed(0),
+            center_deg: config.center.toFixed(0),
+          });
+        }, 120);
+      });
+    }
+
+    async function loadState() {
+      try {
+        const response = await fetch("/api/state");
+        if (!response.ok) throw new Error("无法读取设备状态");
+        const state = await response.json();
+
+        config.frequency = state.frequency_hz;
+        config.phase = state.phase_deg;
+        config.center = state.center_deg;
+        sliders.frequency.value = String(state.frequency_hz);
+        sliders.phase.value = String(state.phase_deg);
+        sliders.center.value = String(state.center_deg);
+
+        stick.x = clamp(state.differential_deg / MAX_DIFFERENTIAL, -1, 1);
+        stick.y = clamp((state.amplitude_deg - AMPLITUDE_MID) / AMPLITUDE_SPAN, -1, 1);
+
+        renderSliders();
+        renderStick();
+        setStatus(state.running ? "扑动中" : "已停止", state.running ? "running" : "stopped");
+        setMessage("设备已连接", false);
+      } catch (error) {
+        setStatus("连接失败", "error");
+        setMessage(error.message || "连接设备失败", true);
+      }
+    }
+
+    loadState();
+  </script>
+</body>
+</html>

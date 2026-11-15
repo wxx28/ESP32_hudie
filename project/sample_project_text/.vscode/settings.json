@@ -22,16 +22,16 @@
   "idf.openOcdConfigs": [
     "board/esp32c3-builtin.cfg"
   ],
-  "idf.port": "COM3",
-  "idf.currentSetup": "D:\\ESP-DIF\\.espressif\\v6.1\\esp-idf",
+  "idf.port": "COM5",
+  "idf.currentSetup": "D:\\esp\\v6.1\\esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32c3"
   },
   "clangd.path": "C:\\Espressif\\tools\\esp-clangd\\esp-21.1.3_20260408\\esp-clangd\\bin\\clangd.exe",
   "clangd.arguments": [
-    "--background-index",
-    "--query-driver=**",
-    "--compile-commands-dir=d:\\git stor\\sample_project_text\\build"
-  ],
+  "--background-index",
+  "--query-driver=**",
+  "--compile-commands-dir=d:\\esp\\ESP32_hudie-main\\ESP32_hudie-main\\sample_project_text\\build"
+],
   "idf.flashType": "UART"
 }
