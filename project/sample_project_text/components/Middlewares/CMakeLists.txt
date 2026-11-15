@@ -1,12 +1,11 @@
 set(src_dirs
-            LED)
+            ServoMotion)
 
 set(include_dirs
-            LED)
+            ServoMotion)
 
 set(requires
-            driver)
+            BSP
+            esp_timer)
 
 idf_component_register(SRC_DIRS ${src_dirs} INCLUDE_DIRS ${include_dirs} REQUIRES ${requires})
-
-component_compile_options(-ffast-math -O3)
