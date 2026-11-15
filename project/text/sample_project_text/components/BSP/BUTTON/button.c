@@ -5,7 +5,8 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 
-#define BUTTON_DEBOUNCE_US 20000
+/* 电平需连续保持该时长才视为稳定状态，覆盖机械按键 1~10 ms 的典型抖动区间 */
+#define BUTTON_DEBOUNCE_MS 20
 
 static const char *TAG = "bsp_button";
 
@@ -13,6 +14,7 @@ static gpio_num_t s_gpio = GPIO_NUM_NC;
 static bool s_active_low;
 static button_press_cb_t s_press_cb;
 static esp_timer_handle_t s_debounce_timer;
+static bool s_stable_pressed;
 
 static bool button_is_pressed(void)
 {
@@ -23,10 +25,13 @@ static bool button_is_pressed(void)
 static void debounce_timeout_cb(void *arg)
 {
     (void)arg;
-    if (!button_is_pressed()) {
+    bool pressed = button_is_pressed();
+    /* 抖动后回到原状态，不算一次动作，也就不会重复触发 */
+    if (pressed == s_stable_pressed) {
         return;
     }
-    if (s_press_cb != NULL) {
+    s_stable_pressed = pressed;
+    if (pressed && s_press_cb != NULL) {
         s_press_cb();
     }
 }
@@ -34,8 +39,9 @@ static void debounce_timeout_cb(void *arg)
 static void button_isr_handler(void *arg)
 {
     (void)arg;
+    /* 每个边沿都重新计时，直到电平安静 BUTTON_DEBOUNCE_MS 后才采样判断 */
     esp_timer_stop(s_debounce_timer);
-    esp_timer_start_once(s_debounce_timer, BUTTON_DEBOUNCE_US);
+    esp_timer_start_once(s_debounce_timer, (uint64_t)BUTTON_DEBOUNCE_MS * 1000);
 }
 
 esp_err_t button_init(int gpio_num, bool active_low, button_press_cb_t on_press)
@@ -51,9 +57,12 @@ esp_err_t button_init(int gpio_num, bool active_low, button_press_cb_t on_press)
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = active_low ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
         .pull_down_en = active_low ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE,
-        .intr_type = active_low ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE,
+        .intr_type = GPIO_INTR_ANYEDGE,
     };
     ESP_RETURN_ON_ERROR(gpio_config(&cfg), TAG, "gpio_config failed");
+
+    /* 上电就按住时先记为已按下，必须松开再按才会计一次 */
+    s_stable_pressed = button_is_pressed();
 
     const esp_timer_create_args_t timer_args = {
         .callback = debounce_timeout_cb,
