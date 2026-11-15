@@ -31,7 +31,7 @@
   "clangd.arguments": [
     "--background-index",
     "--query-driver=**",
-    "--compile-commands-dir=d:\\git stor\\sample_project_text\\build"
+    "--compile-commands-dir=d:\\ESP32_hudie\\project\\first\\first_project\\build"
   ],
   "idf.flashType": "UART"
 }
