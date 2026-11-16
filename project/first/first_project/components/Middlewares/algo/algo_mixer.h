@@ -1,3 +1,4 @@
+/* 头文件保护：防止重复包含导致类型重复定义。 */
 #ifndef ALGO_MIXER_H
 #define ALGO_MIXER_H
 
@@ -57,6 +58,7 @@
  * 本模块不访问硬件、不使用动态内存，也不依赖 Arduino。
  */
 
+/* C++ 调用时按 C 链接处理本模块的接口。 */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -66,6 +68,7 @@ extern "C" {
  * ============================================================ */
 
 typedef enum {
+    /* 调用成功，输出有效（或按约定为安全输出）。 */
     MIXER_STATUS_OK = 0,
 
     /* 必要指针为空。 */
@@ -91,6 +94,7 @@ typedef enum {
  * ============================================================ */
 
 typedef struct {
+    /* 初始化时复制的控制分配配置。 */
     algo_mixer_config_t config;
 
     /*
@@ -102,6 +106,7 @@ typedef struct {
     /* 最近一次生成的待提交波形参数，用于调试和测试。 */
     flap_wave_cmd_t last_command;
 
+    /* 是否已成功调用 mixer_init()。 */
     bool initialized;
 } mixer_state_t;
 
@@ -259,7 +264,7 @@ mixer_status_t mixer_get(
 );
 
 #ifdef __cplusplus
-}
+} /* extern "C" */
 #endif
 
 #endif /* ALGO_MIXER_H */
