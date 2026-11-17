@@ -277,6 +277,15 @@ typedef struct {
      */
     bool enabled;
 
+    /*
+     * 直驱模式：机翼直接装在舵机摆臂上（康师傅 V1 机构），
+     * 舵机角 = servo_neutral_deg + servo_direction × 翼角(deg)。
+     *
+     * 仅在 enabled == false 时生效；两者都为 false 时逆解输出不可达，
+     * 安全状态机不允许正常扑翼。
+     */
+    bool direct_drive;
+
     /* 左右翼各自的四连杆参数。 */
     algo_linkage_side_config_t side[ALGO_WING_COUNT];
 } algo_linkage_config_t;
@@ -486,6 +495,7 @@ typedef struct {
 #define ALGO_LINKAGE_CONFIG_DEFAULT \
     { \
         .enabled = false, \
+        .direct_drive = false, \
         .side = { \
             ALGO_LINKAGE_SIDE_CONFIG_DEFAULT, \
             ALGO_LINKAGE_SIDE_CONFIG_DEFAULT \

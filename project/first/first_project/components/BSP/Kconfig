@@ -1,0 +1,69 @@
+menu "蝴蝶 V1 飞控板 BSP"
+
+    config BSP_SERVO_PWM_HZ
+        int "舵机 PWM 频率 (Hz)"
+        range 50 333
+        default 50
+        help
+            50 Hz 所有舵机都能用。数码舵机可改 200~333 Hz 降低延迟；
+            模拟舵机超过 50 Hz 会发热甚至烧毁。
+
+    config BSP_SERVO_MIN_US
+        int "舵机 0° 对应脉宽 (us)"
+        default 500
+
+    config BSP_SERVO_MAX_US
+        int "舵机 180° 对应脉宽 (us)"
+        default 2500
+
+    config BSP_SERVO_OPTO_INVERT
+        bool "舵机信号经过光耦反相（V1 板 U9/U10）"
+        default y
+        help
+            IO 高 -> 光耦导通 -> 舵机侧被拉低，所以 LEDC 输出必须反相。
+            只有把光耦短接改成直连时才关闭。
+
+    config BSP_LED_ACTIVE_HIGH
+        bool "状态灯高电平点亮"
+        default y
+        help
+            V1 板 IO10 驱动 SI2302 NMOS 栅极，高电平点亮。
+
+    menu "IMU 安装方向（传感器轴 -> 机体轴）"
+        comment "机体系：X 向前（头）、Y 向右、Z 向下。芯片 Z 轴朝板子正面。"
+
+        choice BSP_IMU_BODY_X
+            prompt "机体 X（前）取自"
+            default BSP_IMU_BODY_X_POS_X
+            config BSP_IMU_BODY_X_POS_X
+                bool "+X"
+            config BSP_IMU_BODY_X_NEG_X
+                bool "-X"
+            config BSP_IMU_BODY_X_POS_Y
+                bool "+Y"
+            config BSP_IMU_BODY_X_NEG_Y
+                bool "-Y"
+        endchoice
+
+        choice BSP_IMU_BODY_Y
+            prompt "机体 Y（右）取自"
+            default BSP_IMU_BODY_Y_NEG_Y
+            config BSP_IMU_BODY_Y_POS_X
+                bool "+X"
+            config BSP_IMU_BODY_Y_NEG_X
+                bool "-X"
+            config BSP_IMU_BODY_Y_POS_Y
+                bool "+Y"
+            config BSP_IMU_BODY_Y_NEG_Y
+                bool "-Y"
+        endchoice
+
+        config BSP_IMU_BOARD_TOP_UP
+            bool "板子正面朝上安装（芯片 Z 朝天）"
+            default y
+            help
+                正面朝上时机体 Z（向下）= 芯片 -Z。
+                X/Y 选择必须和 Z 构成右手系，否则启动时报错。
+    endmenu
+
+endmenu

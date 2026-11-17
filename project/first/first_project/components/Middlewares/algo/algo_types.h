@@ -133,6 +133,12 @@ typedef struct {
     /* 当前解锁开关请求，由安全状态机判断状态变化。 */
     bool arm_request;
 
+    /*
+     * 增稳模式请求（遥控器模式键）。
+     * 只是请求；是否真正闭环由安全状态机根据姿态和整定状态决定。
+     */
+    bool stabilize_request;
+
     /* 当前遥控数据是否有效。 */
     bool valid;
 

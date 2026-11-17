@@ -1,0 +1,39 @@
+menu "EDU 遥控器 BSP"
+
+    config RC_JOY_SPAN_COUNTS
+        int "摇杆半行程对应的 ADC 计数"
+        range 800 2048
+        default 1900
+        help
+            原 MicroPython 代码：(raw - 中位) / 3.8 映射到 ±500，即半行程约 1900 计数。
+            打满杆仍到不了 ±1000 时调小。
+
+    config RC_JOY_DEADZONE_PERMILLE
+        int "摇杆死区 (‰)"
+        range 0 100
+        default 20
+
+    config RC_THROTTLE_FULL_COUNTS
+        int "油门满行程 ADC 计数"
+        range 2000 4095
+        default 3800
+
+    config RC_INVERT_THROTTLE
+        bool "油门反向"
+        default y
+        help
+            原代码 thr = 3000 - raw：推杆向上 ADC 变小。
+
+    config RC_INVERT_ROLL
+        bool "滚转反向"
+        default y
+
+    config RC_INVERT_PITCH
+        bool "俯仰反向"
+        default n
+
+    config RC_INVERT_YAW
+        bool "偏航反向"
+        default y
+
+endmenu

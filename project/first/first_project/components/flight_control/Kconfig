@@ -1,0 +1,61 @@
+menu "蝴蝶飞控参数"
+
+    config FC_MECH_CONFIRMED
+        bool "机构参数已在台架确认（允许解锁扑翼）"
+        default n
+        help
+            关闭时飞控能跑、能连遥控、能看姿态，但安全状态机拒绝解锁。
+            先不装翅膀，确认下面的中位、幅度、左右方向都对，再打开。
+
+    config FC_DIRECT_DRIVE
+        bool "直驱：机翼直接装在舵机摆臂上（康师傅 V1 机构）"
+        default y
+        help
+            关闭则需要在 fc_config.c 里填四连杆尺寸。
+
+    config FC_SERVO_LEFT_NEUTRAL_DEG
+        int "左舵机中位 (deg)"
+        range 30 150
+        default 90
+
+    config FC_SERVO_RIGHT_NEUTRAL_DEG
+        int "右舵机中位 (deg)"
+        range 30 150
+        default 90
+
+    config FC_SERVO_RIGHT_MIRRORED
+        bool "右舵机镜像安装（同一指令两翼反向运动）"
+        default y
+        help
+            康师傅 V1 左右舵机是镜像装的：左 = 中位 + 幅度，右 = 中位 - 幅度。
+
+    config FC_FLAP_AMPLITUDE_DEG
+        int "满油门扑翼幅度 (单侧, deg)"
+        range 10 60
+        default 35
+
+    config FC_ROLL_DIFF_DEG
+        int "满滚转杆左右幅度差 (deg)"
+        range 0 20
+        default 8
+
+    config FC_FLAP_MIN_HZ_X10
+        int "最低扑翼频率 (0.1 Hz)"
+        range 10 80
+        default 25
+
+    config FC_FLAP_MAX_HZ_X10
+        int "最高扑翼频率 (0.1 Hz)"
+        range 20 120
+        default 55
+        help
+            受舵机速度限制：单侧 35° 幅度时，0.1 s/60° 的舵机大约只能到 5~6 Hz。
+
+    config FC_ENABLE_STABILIZE
+        bool "启用增稳（角度/角速度 PID，需整定后再开）"
+        default n
+        help
+            关闭时 PID 增益为 0，遥控器的增稳模式会自动退回手动直通。
+            打开后使用 fc_config.c 中的初始增益，必须系绳试飞逐级调。
+
+endmenu
