@@ -200,7 +200,10 @@ void safety_update(safety_state_machine_t *sm, const safety_input_t *in, uint32_
             enter(sm, ALGO_SAFETY_STANDBY);
         } else if (rc->age_ms >= c->rc_failsafe_timeout_ms || !rc->valid) {
             if (rc->age_ms >= c->rc_failsafe_timeout_ms) {
-                sm->ramp_limit = (sm->state == ALGO_SAFETY_DEGRADED) ? c->degraded_amplitude_limit : 1.0f;
+                const float cap = (sm->state == ALGO_SAFETY_DEGRADED) ? c->degraded_amplitude_limit : 1.0f;
+                float start = isfinite(in->hold_throttle) ? in->hold_throttle : 0.0f;
+                start = start < 0.0f ? 0.0f : (start > cap ? cap : start);
+                sm->ramp_limit = start;
                 enter(sm, ALGO_SAFETY_FAILSAFE);
             } else {
                 enter(sm, ALGO_SAFETY_DEGRADED);
@@ -214,13 +217,14 @@ void safety_update(safety_state_machine_t *sm, const safety_input_t *in, uint32_
         break;
 
     case ALGO_SAFETY_FAILSAFE: {
-        /* 幅度线性收到 failsafe 限制 */
+        /* 幅度在 failsafe_ramp_time_s 内线性过渡到 failsafe 限制（可升可降） */
         const float step = (1.0f / c->failsafe_ramp_time_s) * ((float)dt_ms / 1000.0f);
-        if (sm->ramp_limit > c->failsafe_amplitude_limit) {
+        if (sm->ramp_limit > c->failsafe_amplitude_limit + step) {
             sm->ramp_limit -= step;
-            if (sm->ramp_limit < c->failsafe_amplitude_limit) {
-                sm->ramp_limit = c->failsafe_amplitude_limit;
-            }
+        } else if (sm->ramp_limit < c->failsafe_amplitude_limit - step) {
+            sm->ramp_limit += step;
+        } else {
+            sm->ramp_limit = c->failsafe_amplitude_limit;
         }
         /* 遥控恢复且开关已回到上锁，才能回到待机 */
         if (rc_fresh && !rc->arm_request && sm->rc_good_ms >= c->rc_recover_time_ms) {

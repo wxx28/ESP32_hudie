@@ -51,6 +51,22 @@ menu "蝴蝶飞控参数"
         help
             受舵机速度限制：单侧 35° 幅度时，0.1 s/60° 的舵机大约只能到 5~6 Hz。
 
+    config FC_FAILSAFE_THROTTLE_PCT
+        int "失控保护油门 (%)（遥控断开 1 s 后保持的油门）"
+        range 0 100
+        default 60
+        help
+            失控后 2 s 内从当前油门平滑过渡到这个值并保持，用来缓降。
+            应略低于悬停油门（悬停油门 − 5% 左右）。升力约与幅度平方成正比，
+            设得太低会直接掉下来：仿真里 35% 以 3.8 m/s 坠地，60% 约 0.7 m/s 缓降。
+
+    config FC_DEGRADED_AMP_PCT
+        int "降级幅度上限 (%)（遥控 0.3 s 没更新 / 电池低）"
+        range 0 100
+        default 85
+        help
+            短时丢包时允许的最大扑翼幅度。太低会在丢包瞬间掉高度。
+
     config FC_ENABLE_STABILIZE
         bool "启用增稳（角度/角速度 PID，需整定后再开）"
         default n

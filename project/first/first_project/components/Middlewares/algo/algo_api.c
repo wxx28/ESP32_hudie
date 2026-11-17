@@ -191,15 +191,20 @@ static algo_status_t fail(algo_status_t st, const algo_input_t *input, uint32_t 
     return st;
 }
 
-/* 遥控保持指令：失联降级期间用最后一次有效油门，杆量回中 */
-static algo_rc_command_t effective_rc(const algo_rc_command_t *rc, safety_state_t state)
+/*
+ * 遥控保持指令：
+ *   DEGRADED：最后一次有效油门，杆量回中（短时丢包，飞手意图不变）；
+ *   FAILSAFE：油门 = 安全指令里的幅度系数（从失联油门过渡到失控设定值），杆量回中。
+ */
+static algo_rc_command_t effective_rc(const algo_rc_command_t *rc, const safety_directive_t *safety)
 {
-    if (rc->valid) {
+    const safety_state_t state = safety->state;
+    if (rc->valid && state != ALGO_SAFETY_FAILSAFE) {
         return *rc;
     }
     algo_rc_command_t hold = *rc;
     if ((state == ALGO_SAFETY_DEGRADED || state == ALGO_SAFETY_FAILSAFE) && s_ctx.has_valid_rc) {
-        hold.throttle = s_ctx.last_valid_rc.throttle;
+        hold.throttle = (state == ALGO_SAFETY_FAILSAFE) ? safety->amplitude_limit : s_ctx.last_valid_rc.throttle;
         hold.roll = 0.0f;
         hold.pitch = 0.0f;
         hold.yaw = 0.0f;
@@ -261,6 +266,7 @@ algo_status_t algo_api_step(const algo_input_t *input, float dt_s, algo_output_t
         .attitude = &out.attitude,
         .filter = &out.filter,
         .module_faults = s_ctx.module_faults,
+        .hold_throttle = s_ctx.has_valid_rc ? s_ctx.last_valid_rc.throttle : 0.0f,
     };
     safety_update(&s_ctx.safety, &sin, dt_ms, &out.safety);
     s_ctx.last_safety = out.safety;
@@ -271,7 +277,7 @@ algo_status_t algo_api_step(const algo_input_t *input, float dt_s, algo_output_t
         (s_ctx.runtime.fast_update_count % s_ctx.config.scheduler.control_divider) == 0u ||
         out.safety.reset_controller;
     if (run_control) {
-        algo_rc_command_t rc = effective_rc(&input->rc, out.safety.state);
+        algo_rc_command_t rc = effective_rc(&input->rc, &out.safety);
         if (control_update(&s_ctx.control, &rc, &out.attitude, &out.filter, &out.safety,
                            s_ctx.control_dt_acc_s, &s_ctx.last_control) != CONTROL_STATUS_OK) {
             memset(&s_ctx.last_control, 0, sizeof(s_ctx.last_control));

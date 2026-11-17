@@ -1,0 +1,17 @@
+#pragma once
+/*
+ * 仿真用 sdkconfig：取 Kconfig 默认值，让 fc_config.c 原样编译。
+ * 机构确认 / 增稳 / PID 在仿真界面里改，由 sim.c 覆盖到 algo_config_t。
+ */
+#define CONFIG_FC_MECH_CONFIRMED 1
+#define CONFIG_FC_DIRECT_DRIVE 1
+#define CONFIG_FC_SERVO_LEFT_NEUTRAL_DEG 90
+#define CONFIG_FC_SERVO_RIGHT_NEUTRAL_DEG 90
+#define CONFIG_FC_SERVO_RIGHT_MIRRORED 1
+#define CONFIG_FC_FLAP_AMPLITUDE_DEG 35
+#define CONFIG_FC_ROLL_DIFF_DEG 8
+#define CONFIG_FC_FLAP_MIN_HZ_X10 25
+#define CONFIG_FC_FLAP_MAX_HZ_X10 55
+#define CONFIG_FC_FAILSAFE_THROTTLE_PCT 60
+#define CONFIG_FC_DEGRADED_AMP_PCT 85
+#define CONFIG_FC_ENABLE_STABILIZE 1

@@ -16,13 +16,16 @@
  *              ESTOP ◄──(严重故障/姿态翻转)──── ARMED ⇄ DEGRADED（遥控短时异常/低电）
  *                                                  │
  *                                                  ▼ 遥控失联超过 rc_failsafe_timeout_ms
- *                                               FAILSAFE（幅度斜坡收到 failsafe 限制，禁止差动）
+ *                                               FAILSAFE（从当前油门平滑过渡到 failsafe 设定并保持，禁止差动）
  *
  * 规则：
  *   - 解锁必须是 arm_request 的"上升沿"，且油门 < ARM_THROTTLE_MAX；
  *     上电时开关已经在解锁位不会直接起飞。
  *   - require_valid_mechanical_limits 为 true 时，
  *     waveform.mechanical_limits_valid 和连杆可用性都必须为真才能解锁。
+ *   - FAILSAFE 输出的 amplitude_limit 同时作为保持油门：
+ *     从失联时的油门（不超过当前幅度限制）在 failsafe_ramp_time_s 内线性过渡到
+ *     failsafe_amplitude_limit 并保持，用于缓降。该值应略低于悬停油门。
  *   - FAILSAFE 只能通过"遥控恢复 + 解锁开关回到上锁"回到 STANDBY，必须重新解锁。
  *   - ESTOP 锁存，只能在上锁状态下调用 safety_clear_latched() 清除。
  *   - 增稳只是请求：同时满足 stabilize_request、姿态已收敛、
@@ -65,6 +68,8 @@ typedef struct {
     const filter_out_t *filter;
     /* 本周期其它模块上报的故障（连杆不可达、内部错误等）。 */
     uint32_t module_faults;
+    /* 最后一次有效遥控的油门 [0,1]，失控保护从这里开始过渡。 */
+    float hold_throttle;
 } safety_input_t;
 
 bool safety_config_is_valid(const algo_safety_config_t *config);

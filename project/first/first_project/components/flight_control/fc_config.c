@@ -57,6 +57,11 @@ void fc_config_v1(algo_config_t *c)
         c->linkage.side[w].servo_max_deg = 170.0f;
     }
 
+    /* ---------- 失控保护 / 降级 ---------- */
+    /* 仿真（project/sim）得出：升力≈幅度²，默认 0.35 会自由落体，改成略低于悬停油门 */
+    c->safety.failsafe_amplitude_limit = (float)CONFIG_FC_FAILSAFE_THROTTLE_PCT / 100.0f;
+    c->safety.degraded_amplitude_limit = (float)CONFIG_FC_DEGRADED_AMP_PCT / 100.0f;
+
     /* ---------- 增稳 ---------- */
 #if CONFIG_FC_ENABLE_STABILIZE
     /*

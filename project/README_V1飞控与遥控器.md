@@ -66,7 +66,7 @@ idf.py -p COMy flash monitor
 | 5 | menuconfig →「蝴蝶飞控参数」→ 打开 `FC_MECH_CONFIRMED`，重新烧 | — |
 | 6 | 油门拉到底 → 单击 stop 解锁（灯常亮）→ 慢慢推油门 | 两个舵机同时摆，左右对称；油门越大越快 |
 | 7 | 打右滚杆 | 左翼摆幅变大、右翼变小（右滚） |
-| 8 | 关掉遥控器 | 0.3 s 后幅度减半，1 s 后进入失控保护：幅度在 2 s 内收到 35%，**不会突然停翅** |
+| 8 | 关掉遥控器 | 0.3 s 后进入降级，1 s 后进入失控保护：油门 2 s 内过渡到失控油门，**不会突然停翅** |
 | 9 | 重新打开遥控器 | 先单击 stop **上锁**，飞控才会回到待机；再解锁才能继续飞 |
 
 左右方向不对：menuconfig 里改 `FC_SERVO_RIGHT_MIRRORED`；中位不对：改 `FC_SERVO_LEFT/RIGHT_NEUTRAL_DEG`，或者飞行中用遥控器 left/right/up/down 微调。
@@ -108,8 +108,8 @@ idf.py -p COMy flash monitor
 | 上电时遥控器已在解锁状态 | 不起飞，必须"上锁 → 解锁" |
 | 解锁时油门 > 5% | 拒绝（两端都检查） |
 | 机构参数未确认 / 连杆不可用 | 拒绝解锁 |
-| 遥控 300 ms 没更新 | 降级：幅度 50%、差动 20% |
-| 遥控 1 s 没更新 | 失控保护：保持最后油门、杆量回中，幅度 2 s 斜坡到 35%，禁止差动 |
+| 遥控 300 ms 没更新 | 降级：幅度上限 85%（`FC_DEGRADED_AMP_PCT`）、差动 20%，保持最后油门 |
+| 遥控 1 s 没更新 | 失控保护：杆量回中，油门 2 s 内从当前值过渡到 60%（`FC_FAILSAFE_THROTTLE_PCT`）并保持，禁止差动 → 缓降 |
 | 姿态 > 45° 或角速度 > 300°/s 持续 0.5 s | 急停，立即回中位 |
 | 飞行中 IMU 读不到 | 急停 |
 | 电池 < 3.4 V | 不能解锁；飞行中进入降级 |
@@ -141,7 +141,13 @@ gcc -std=c11 -O2 -Icomponents/Middlewares/algo tests/test_api.c components/Middl
 - 原 `fc_input.h` 里放的其实是 fc_output 的接口，已原样移到 `fc_output.h`，`fc_input.h` 改为输入接口。
 - 协议帧与 `项目计划/firmware/shared/protocol.h` 逐字节一致（C 版本在 `common/hudie_link/include/hudie_protocol.h`）。
 
-## 10. 还没做 / 需要实测
+## 10. 仿真器
+
+`project/sim/`：在电脑上运行这套飞控算法 + 简化扑翼物理模型，有 3D 界面、遥控器、故障注入和曲线，见 `project/sim/README.md`。
+
+## 11. 还没做 / 需要实测
+
+- **失控油门必须按实测悬停油门调**：`FC_FAILSAFE_THROTTLE_PCT` ≈ 悬停油门 − 5%；
 
 - 气压计 SPL06、磁力计 LIS2MDL 还没读（I2C 已引出，`alt_cm` 遥测恒为 0）；
 - 前馈、偏航闭环、增益调度未启用；
